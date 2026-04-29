@@ -90,4 +90,12 @@ class ImagesVectorDB {
     fun hasImages(personID: Long): Boolean {
         return imagesBox.query(FaceImageRecord_.personID.equal(personID)).build().count() > 0
     }
+
+    fun getAllEmbeddingsForPerson(personID: Long): List<FloatArray> {
+        return imagesBox
+            .query(FaceImageRecord_.personID.equal(personID))
+            .build()
+            .find()
+            .map { it.faceEmbedding }
+    }
 }

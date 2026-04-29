@@ -3,6 +3,7 @@ package com.phq.swl.pioms.domain
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.net.Uri
+import android.util.Log
 import com.phq.swl.pioms.data.FaceImageRecord
 import com.phq.swl.pioms.data.ImagesVectorDB
 import com.phq.swl.pioms.data.RecognitionMetrics
@@ -73,7 +74,7 @@ class ImageVectorUseCase(
             val (croppedBitmap, boundingBox) = result
             val (embedding, t2) = measureTimedValue { faceNet.getFaceEmbedding(croppedBitmap) }
             avgT2 += t2.toLong(DurationUnit.MILLISECONDS)
-            // Perform nearest-neighbor search
+            // Perform nearest-neighbor search to find candidate person
             val (recognitionResult, t3) =
                 measureTimedValue { imagesVectorDB.getNearestEmbeddingPersonName(embedding, flatSearch) }
             avgT3 += t3.toLong(DurationUnit.MILLISECONDS)
@@ -85,12 +86,25 @@ class ImageVectorUseCase(
             val spoofResult = faceSpoofDetector.detectSpoof(frameBitmap, boundingBox)
             avgT4 += spoofResult.timeMillis
 
-            // Calculate cosine similarity between the nearest-neighbor
-            // and the query embedding
-            val distance = cosineDistance(embedding, recognitionResult.faceEmbedding)
-            // If the distance > 0.4, we recognize the person
-            // else we conclude that the face does not match enough
-            if (distance > 0.4) {
+            // Get all embeddings for the matched person and verify match
+            val allPersonEmbeddings = imagesVectorDB.getAllEmbeddingsForPerson(recognitionResult.personID)
+
+            if (allPersonEmbeddings.isEmpty()) {
+                faceRecognitionResults.add(FaceRecognitionResult("Not recognized", boundingBox, spoofResult))
+                continue
+            }
+
+            // Calculate cosine similarity against all embeddings
+            val similarities = allPersonEmbeddings.map { cosineDistance(embedding, it) }
+            val avgSimilarity = similarities.average().toFloat()
+
+            // Require 70% of embeddings to match above 0.65 threshold
+            val matchingCount = similarities.count { it > 0.65 }
+            val matchPercentage = (matchingCount.toFloat() / similarities.size) * 100
+
+            Log.d("FaceRecognition", "${recognitionResult.personName}: similarities=$similarities, avg=$avgSimilarity, matching=$matchPercentage%")
+
+            if (matchPercentage >= 70f && avgSimilarity > 0.6) {
                 faceRecognitionResults.add(
                     FaceRecognitionResult(recognitionResult.personName, boundingBox, spoofResult),
                 )
