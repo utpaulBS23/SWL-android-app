@@ -88,9 +88,9 @@ class ImageVectorUseCase(
             // Calculate cosine similarity between the nearest-neighbor
             // and the query embedding
             val distance = cosineDistance(embedding, recognitionResult.faceEmbedding)
-            // If the distance > 0.4, we recognize the person
-            // else we conclude that the face does not match enough
-            if (distance > 0.4) {
+            // WHY: 0.75 threshold — FaceNet cosine similarity for same person is typically 0.65–0.90;
+            // anything below 0.75 risks accepting a different person's face.
+            if (distance > 0.75) {
                 faceRecognitionResults.add(
                     FaceRecognitionResult(recognitionResult.personName, boundingBox, spoofResult),
                 )
