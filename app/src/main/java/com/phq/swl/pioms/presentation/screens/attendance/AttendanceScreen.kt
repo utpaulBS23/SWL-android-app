@@ -192,6 +192,18 @@ fun AttendanceScreen(
             }
         }
 
+    LaunchedEffect(showCamera) {
+        if (!showCamera) return@LaunchedEffect
+        kotlinx.coroutines.delay(120_000L)
+        if (showCamera) {
+            showCamera = false
+            isManualMode = false
+            resultTitle = "Camera Timed Out"
+            resultMessage = "Camera closed after 2 minutes of inactivity. Please try again."
+            showResultDialog = true
+        }
+    }
+
     LaunchedEffect(similarityScore) {
         val score = similarityScore ?: return@LaunchedEffect
         if (score >= 0.80) {
