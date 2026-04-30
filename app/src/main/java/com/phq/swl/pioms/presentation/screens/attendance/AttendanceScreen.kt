@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -499,15 +498,8 @@ fun AttendanceScreen(
                 }
             }
 
-            // Pre-initialize camera UI for faster response - placed AFTER Scaffold for correct Z-order
-            if (cameraPermissionGranted) {
-                Box(
-                    modifier = if (showCamera) {
-                        Modifier.fillMaxSize().background(Color.Black)
-                    } else {
-                        Modifier.size(1.dp).alpha(0f)
-                    }
-                ) {
+            if (showCamera) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = {
@@ -516,7 +508,7 @@ fun AttendanceScreen(
                                 context = context,
                                 viewModel = detectViewModel,
                                 onFaceRecognitionResults = { results ->
-                                    if (!showCamera || isManualMode) return@FaceDetectionOverlay
+                                    if (isManualMode) return@FaceDetectionOverlay
                                     if (processed) return@FaceDetectionOverlay
                                     if (results.isEmpty()) return@FaceDetectionOverlay
                                     val target = userId.trim().ifEmpty { "agent1" }
@@ -530,12 +522,9 @@ fun AttendanceScreen(
                                         showResultDialog = true
                                         return@FaceDetectionOverlay
                                     }
-
-                                    val matchedFrame =
-                                        results.any { it.personName == target }
+                                    val matchedFrame = results.any { it.personName == target }
                                     matchStreak = if (matchedFrame) matchStreak + 1 else 0
                                     if (matchStreak < 5) return@FaceDetectionOverlay
-
                                     processed = true
                                     lastVerificationResult = true
                                     val latLng = currentLatLng
@@ -553,12 +542,10 @@ fun AttendanceScreen(
                                     showDetailsDialog = true
                                 },
                                 onManualCapture = { bitmap ->
-                                    if (!showCamera) return@FaceDetectionOverlay
                                     viewModel.capturedImageState.value = bitmap
                                     scope.launch {
-                                        val storedBase64 = viewModel.storedFaceBase64State.value 
+                                        val storedBase64 = viewModel.storedFaceBase64State.value
                                             ?: viewModel.getStoredImageBase64(context)
-                                            
                                         if (storedBase64 == null) {
                                             resultTitle = "Error"
                                             resultMessage = "Your profile image not found. Please register face first."
@@ -570,45 +557,41 @@ fun AttendanceScreen(
                                         viewModel.verifyFaceSimilarity(storedBase64, capturedBase64)
                                         showCamera = false
                                     }
-                                }
+                                },
                             ).also { overlayInstance = it }
                         },
                         update = {
                             it.initializeCamera(androidx.camera.core.CameraSelector.LENS_FACING_FRONT)
                         },
                     )
-                    
-                    if (showCamera) {
-                        IconButton(
-                            modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
-                            onClick = { 
-                                showCamera = false
-                                isManualMode = false
-                            },
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Close",
-                                tint = Color.White,
-                            )
-                        }
 
-                        if (isManualMode) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = 40.dp)
-                                    .size(80.dp)
-                                    .background(Color.White, CircleShape)
-                                    .padding(4.dp)
-                                    .background(Color.Black, CircleShape)
-                                    .padding(2.dp)
-                                    .background(Color.White, CircleShape)
-                                    .clickable {
-                                        overlayInstance?.capture()
-                                    }
-                            )
-                        }
+                    IconButton(
+                        modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+                        onClick = {
+                            showCamera = false
+                            isManualMode = false
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Close",
+                            tint = Color.White,
+                        )
+                    }
+
+                    if (isManualMode) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 40.dp)
+                                .size(80.dp)
+                                .background(Color.White, CircleShape)
+                                .padding(4.dp)
+                                .background(Color.Black, CircleShape)
+                                .padding(2.dp)
+                                .background(Color.White, CircleShape)
+                                .clickable { overlayInstance?.capture() },
+                        )
                     }
                 }
             }
