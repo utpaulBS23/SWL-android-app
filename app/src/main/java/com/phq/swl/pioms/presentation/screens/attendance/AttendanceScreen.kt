@@ -680,11 +680,13 @@ fun AttendanceScreen(
                         )
                     },
                     confirmButton = {
-                        Button(onClick = { 
+                        Button(onClick = {
+                            val failed = lastVerificationResult == false
                             showResultDialog = false
                             resultTitle = ""
                             resultMessage = ""
                             lastVerificationResult = null
+                            if (failed) onNavigateBack()
                         }) {
                             Text(text = "OK")
                         }
@@ -738,7 +740,10 @@ fun AttendanceScreen(
                         }
                     },
                     dismissButton = {
-                        TextButton(onClick = { showDetailsDialog = false }) {
+                        TextButton(onClick = {
+                            showDetailsDialog = false
+                            onNavigateBack()
+                        }) {
                             Text("Cancel")
                         }
                     }
